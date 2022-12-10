@@ -50,21 +50,16 @@ class Notes(commands.Cog):
             return
         final = {}
         for key, value in members.items():
-            guild = self.bot.get_guild(key)
-            if guild:
-                final.update(
-                    {
-                        guild.id: {
-                            member: [
-                                UserNote(bot=self.bot, guild=guild.id, **note)
-                                for note in data["notes"]
-                            ]
-                            for member, data in value.items()
-                        }
-                    }
-                )
+            if guild := self.bot.get_guild(key):
+                final[guild.id] = {
+                    member: [
+                        UserNote(bot=self.bot, guild=guild.id, **note)
+                        for note in data["notes"]
+                    ]
+                    for member, data in value.items()
+                }
 
-        log.debug(f"Cached all user notes.")
+        log.debug("Cached all user notes.")
 
         self.cache = final
 
@@ -76,7 +71,7 @@ class Notes(commands.Cog):
                 notes = [note.to_dict() for note in notes]
                 await self.config.member_from_ids(key, member).notes.set(notes)
 
-        log.debug(f"Saved all user notes")
+        log.debug("Saved all user notes")
 
     @classmethod
     async def initialize(cls, bot):
@@ -138,10 +133,7 @@ class Notes(commands.Cog):
 
     def _get_notes_of_type(self, guild: discord.Guild, member: discord.Member, type: NoteType):
         user = self._get_notes(guild, member)
-        if not user:
-            return []
-
-        return [note for note in user if note.type == type]
+        return [note for note in user if note.type == type] if user else []
 
     def _add_note(self, note: UserNote):
         user = self.cache.setdefault(note._guild, {}).setdefault(note._user, [])
@@ -150,10 +142,7 @@ class Notes(commands.Cog):
 
     def _remove_note(self, ctx: commands.Context, member: discord.Member, index: int):
         user = self._get_notes(ctx.guild, member)
-        if not user:
-            return False
-
-        return user.pop(index - 1)
+        return user.pop(index - 1) if user else False
 
     def _remove_all_notes(self, ctx: commands.Context, member: discord.Member):
         user = self._get_notes(ctx.guild, member)
@@ -223,18 +212,16 @@ class Notes(commands.Cog):
             )
             embeds.append(embed)
 
-        embeds = [
+        if embeds := [
             embed.set_footer(text=f"Page {embeds.index(embed)+1}/{len(embeds)}")
             for embed in embeds
-        ]
+        ]:
+            # paginator = ButtonPaginator(self.bot.ButtonClient, ctx, embeds)
+            # await paginator.start()
 
-        if not embeds:
+            await menu(ctx, embeds, DEFAULT_CONTROLS)
+        else:
             return await ctx.send("No notes found for this server.")
-
-        # paginator = ButtonPaginator(self.bot.ButtonClient, ctx, embeds)
-        # await paginator.start()
-
-        await menu(ctx, embeds, DEFAULT_CONTROLS)
 
     @commands.command()
     @commands.mod_or_permissions(manage_messages=True)
@@ -277,10 +264,10 @@ class Notes(commands.Cog):
 
             return await ctx.send(embed=embed)
 
-        fields = []
-        for i, note in enumerate(notes, 1):
-            fields.append({"name": f"Note #{i}", "value": note, "inline": False})
-
+        fields = [
+            {"name": f"Note #{i}", "value": note, "inline": False}
+            for i, note in enumerate(notes, 1)
+        ]
         for ind, embed in enumerate(
             embs := await self.group_embeds_by_fields(
                 *fields, author=member, per_embed=5, color=member.color
@@ -308,9 +295,11 @@ class Notes(commands.Cog):
                 f"That wasn't a valid id. use `{ctx.prefix}notes` to see which note number you wanna remove."
             )
 
-        if not removed:
-            return await ctx.send(f"There are no notes for that user.")
-        return await ctx.send(f"Removed note: {id}. {removed}")
+        return (
+            await ctx.send(f"Removed note: {id}. {removed}")
+            if removed
+            else await ctx.send("There are no notes for that user.")
+        )
 
     @commands.command()
     @commands.mod_or_permissions(manage_messages=True)

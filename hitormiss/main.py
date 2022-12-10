@@ -57,8 +57,7 @@ class HitOrMiss(commands.Cog):
             return
 
         await self.config.user_from_id(user_id).clear()
-        u = functools.reduce(lambda x: x.id == user_id, self.cache)
-        if u:
+        if u := functools.reduce(lambda x: x.id == user_id, self.cache):
             self.cache.remove(u)
 
     def format_help_for_context(self, ctx: commands.Context) -> str:
@@ -103,7 +102,7 @@ class HitOrMiss(commands.Cog):
             embed = discord.Embed(
                 title=title, description=description, color=await ctx.embed_color()
             )
-            embed.set_footer(text="You have {} seconds to answer.".format(timeout))
+            embed.set_footer(text=f"You have {timeout} seconds to answer.")
             if not message:
                 message = await ctx.send(ctx.author.mention, embed=embed)
             else:
@@ -134,17 +133,16 @@ class HitOrMiss(commands.Cog):
         return answers
 
     async def _dict_to_class(self, name: str = None, d: dict = None):
-        if not d and not name:
-            items: dict = await self.config.items()
-            for i, v in items.items():
-                cls = make_dataclass(
-                    i, dc_fields, bases=(BaseItem,), eq=True, unsafe_hash=True, init=False
-                )(**v)
-                self.items[i] = cls
-        else:
+        if d or name:
             return make_dataclass(
                 name, dc_fields, bases=(BaseItem,), eq=True, unsafe_hash=True, init=False
             )(**d)
+        items: dict = await self.config.items()
+        for i, v in items.items():
+            cls = make_dataclass(
+                i, dc_fields, bases=(BaseItem,), eq=True, unsafe_hash=True, init=False
+            )(**v)
+            self.items[i] = cls
 
     def filter_user_items(self, items):
         final = {}
@@ -252,13 +250,8 @@ class HitOrMiss(commands.Cog):
         for k, v in self.items.items():
             fields.append(
                 {
-                    "name": k.center(len(k) + 4, "*") + f" {v.emoji if v.emoji else ''}",
-                    "value": f"> **Damage**: {v.damage}\n"
-                    f"> **Throwable**: {v.throwable}\n"
-                    f"> **Uses**: {v.uses}\n"
-                    f"> **Cooldown**: {v.cooldown}\n"
-                    f"> **Accuracy**: {v.accuracy}\n\n"
-                    f"> ***Price***: {v.price} {await bank.get_currency_name()}",
+                    "name": k.center(len(k) + 4, "*") + f" {v.emoji or ''}",
+                    "value": f"> **Damage**: {v.damage}\n> **Throwable**: {v.throwable}\n> **Uses**: {v.uses}\n> **Cooldown**: {v.cooldown}\n> **Accuracy**: {v.accuracy}\n\n> ***Price***: {v.price} {await bank.get_currency_name()}",
                     "inline": False,
                 }
             )
@@ -293,7 +286,7 @@ class HitOrMiss(commands.Cog):
                 else "Not on cooldown."
             )
             embed.add_field(
-                name=f"{item.__class__.__name__} {item.emoji if item.emoji else ''}",
+                name=f"{item.__class__.__name__} {item.emoji or ''}",
                 value=f"> **Amount Owned: ** {amount}\n"
                 f"> **Uses remaining: ** {item.get_remaining_uses(me)}\n"
                 f"> **On cooldown?: ** {item_cooldown}",
@@ -468,7 +461,7 @@ class HitOrMiss(commands.Cog):
             return await ctx.send(
                 "It seems like no one has played yet so I can't show you the leaderboard :("
             )
-        if not _type.lower() == "all":
+        if _type.lower() != "all":
             users = sorted(users, key=lambda x: getattr(x, _type), reverse=True)
         for user in users:
             if not global_or_local and not ctx.guild.get_member(user.id) or user.is_new:
@@ -480,14 +473,14 @@ class HitOrMiss(commands.Cog):
                 f.append(f"{getattr(user, _type):,}")
             final.append(f)
 
-        index = [i for i in range(1, len(final) + 1)]
+        index = list(range(1, len(final) + 1))
         headers = ["UserName"] + (
             [t.capitalize() for t in lb_types] if _type == "all" else [_type.capitalize()]
         )
 
         msg = tabulate(final, tablefmt="rst", showindex=index, headers=headers)
         pages = []
-        title = f"Hit Or Miss Leaderboard {'in ' + ctx.guild.name.capitalize() if not global_or_local else 'globally'}".center(
+        title = f"Hit Or Miss Leaderboard {'globally' if global_or_local else f'in {ctx.guild.name.capitalize()}'}".center(
             20
         )
         for page in pagify(msg, delims=["\n"], page_length=700):

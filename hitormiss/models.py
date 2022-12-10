@@ -34,12 +34,12 @@ class BaseItem:
         price: int,
         emoji: Optional[str],
     ) -> None:
-        self.damage = int(damage)
-        self.uses = int(uses)
-        self.accuracy = int(accuracy)
-        self.cooldown = int(cooldown)
+        self.damage = damage
+        self.uses = uses
+        self.accuracy = accuracy
+        self.cooldown = cooldown
         self.throwable = throwable
-        self.price = int(price)
+        self.price = price
         self.emoji = emoji
         self._cooldown = commands.CooldownMapping.from_cooldown(
             1, self.cooldown, commands.BucketType.user
@@ -55,18 +55,15 @@ class BaseItem:
     def _handle_usage(self, message: discord.Message, user: "Player"):
         u = self.cache.setdefault(user.id, {"uses": self.uses})
         bucket = self._cooldown.get_bucket(message)
-        retry_after = bucket.update_rate_limit()
-        if not retry_after:
-            u["uses"] -= 1
-            if u["uses"] == 0:
-                u["uses"] = self.uses  # reset the count for the next iteration of the item.
-                user.inv.remove(self)
-            return True
-
-        else:
+        if retry_after := bucket.update_rate_limit():
             raise ItemOnCooldown(
                 f"{self.name} is on cooldown. Try again in {retry_after:.2f} seconds."
             )
+        u["uses"] -= 1
+        if u["uses"] == 0:
+            u["uses"] = self.uses  # reset the count for the next iteration of the item.
+            user.inv.remove(self)
+        return True
 
     def get_remaining_uses(self, user: "Player"):
         return self.cache.setdefault(user.id, {"uses": self.uses}).get("uses", 0)
@@ -122,9 +119,7 @@ class Player:
         if self.hp == 100:
             return False
         self.hp += amount
-        if self.hp > 100:
-            self.hp = 100
-
+        self.hp = min(self.hp, 100)
         return self.hp
 
     def throw(self, message: discord.Message, other: "Player", item: BaseItem):
@@ -183,9 +178,7 @@ class Player:
 
     @property
     def kdr(self):
-        if self.deaths == 0 or self.kills == 0:
-            return 0
-        return self.kills / self.deaths
+        return 0 if self.deaths == 0 or self.kills == 0 else self.kills / self.deaths
 
     @property
     def is_new(self):
