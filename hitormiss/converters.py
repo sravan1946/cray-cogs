@@ -10,8 +10,7 @@ from .models import Player
 class ItemConverter(Converter):
     async def convert(self, ctx, name: str):
         items = ctx.cog.items
-        match = extractOne(name, items.keys(), score_cutoff=80)
-        if match:
+        if match := extractOne(name, items.keys(), score_cutoff=80):
             return items[match[0]]
 
         raise ItemDoesntExist(f"Item `{name}` doesn't exist.")

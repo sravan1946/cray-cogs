@@ -134,7 +134,7 @@ class Timer(commands.Cog):
         )
 
         await timer.start()
-        await ctx.tick(message="Timer for `{}` started!".format(name))
+        await ctx.tick(message=f"Timer for `{name}` started!")
 
     @timer.command(name="end")
     async def timer_end(self, ctx: commands.Context, timer_id: int):
@@ -162,10 +162,11 @@ class Timer(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="Timers in **{}**".format(ctx.guild.name),
+            title=f"Timers in **{ctx.guild.name}**",
             description="\n".join(
                 "{} - {}".format(
-                    f"[{x.name}]({x.jump_url})", cf.humanize_timedelta(timedelta=x.remaining_time)
+                    f"[{x.name}]({x.jump_url})",
+                    cf.humanize_timedelta(timedelta=x.remaining_time),
                 )
                 for x in self.cache[ctx.guild.id]
             ),
